@@ -1,0 +1,122 @@
+// SPDX-License-Identifier: GPL-3.0
+
+pragma solidity ^0.8.0;
+
+contract Transfers {
+
+    //стуктура пользователей
+    struct User {
+        string login;
+        bytes32 passwordHash;
+        string role;
+        uint balance;
+        bool statusBuyer;
+    }
+    
+    mapping(address => User) public users;
+    mapping(string => address) public addresses;
+    address[] public userList;
+    
+// структра для продуктов 
+    struct Product{
+        string name;
+        uint price;
+        string aboutProduct;
+    }
+    mapping (string => Product) public productsInShops;
+    string[] public nameProducts;
+    string[] public nameShops;
+    
+    constructor()  {
+        users[0x5B38Da6a701c568545dCfcB03FcB875f56beddC4] = User("Lorean", getHash("123"), "admin",1000,false);
+        addresses[users[0x5B38Da6a701c568545dCfcB03FcB875f56beddC4].login]=0x5B38Da6a701c568545dCfcB03FcB875f56beddC4;
+        userList.push(0x5B38Da6a701c568545dCfcB03FcB875f56beddC4);
+
+        users[0xAb8483F64d9C6d1EcF9b849Ae677dD3315835cb2] = User("Dasha", getHash("123"), "sellers",1000,false);
+        addresses[users[0xAb8483F64d9C6d1EcF9b849Ae677dD3315835cb2].login]=0xAb8483F64d9C6d1EcF9b849Ae677dD3315835cb2;
+        userList.push(0xAb8483F64d9C6d1EcF9b849Ae677dD3315835cb2);
+
+        users[0x4B20993Bc481177ec7E8f571ceCaE8A9e22C02db] = User("Liza", getHash("123"), "buyer",1000,true);
+        addresses[users[0x4B20993Bc481177ec7E8f571ceCaE8A9e22C02db].login]=0x4B20993Bc481177ec7E8f571ceCaE8A9e22C02db;
+        userList.push(0x4B20993Bc481177ec7E8f571ceCaE8A9e22C02db);
+
+       productsInShops["Hleb"] = Product("hleb",52,"hleb pshenishnii 250gramm");
+       nameProducts.push("Hleb");
+    
+
+    }
+    //полюучение хэша значения
+    function getHash(string memory str) public pure returns(bytes32) {
+        return keccak256(abi.encodePacked(str));
+    }
+
+    //Получение баланса
+    function getBalance(string memory login) public view returns(uint) {
+        return users[addresses[login]].balance;
+    }
+    //создание стартового аккаунта с ролью покупателя
+    function createUser(address addr, string memory password, string memory login) public {
+        
+        require(addresses[login] == address(0), "Account with this login already exists");
+        users[addr] = User(login, getHash(password),"buyer",1000,true);
+        addresses[login] = addr;
+    }
+    //-------------------------ADMINS FUNC-------------------
+    //создание нового админа в системе
+    function createAdmin(address addr, string memory password, string memory login) public {
+        
+        require(addresses[login] == address(0), "Account with this login already exists");
+        users[addr] = User(login, getHash(password),"admin",1000,false);
+        addresses[login] = addr;
+    }
+    //модификатор для доступа к функциям только админам
+    modifier onlyAdmin(){
+            require(getHash(users[msg.sender].role) == getHash("admin"),"You don't admin");
+            _;
+        }
+    //повышение покупателя
+    function upBuyer (string memory login) onlyAdmin public {
+            require (getHash(users[addresses[login]].role) == getHash("buyer"),"user dont buyer");
+            users[addresses[login]].role = "sellers";
+            users[addresses[login]].statusBuyer = false;
+        }
+    //понижение продовца
+    function downSellers (string memory login) onlyAdmin public {
+            require (getHash(users[addresses[login]].role) == getHash("sellers"),"user dont sellers");
+            users[addresses[login]].role = "buyer";
+            users[addresses[login]].statusBuyer = true;
+        }
+    //----------------------BUTTONS FUNC---------------------------------
+    //переключатель роли доступа к функциям покупки  ON
+    function buttonSwitchRoleOn () public 
+        {
+           require(users[msg.sender].statusBuyer == false,"func ON - you buyer");
+            users[msg.sender].statusBuyer = true;
+        }
+    //переключатель роли доступа к функциям покупки OFF
+    function buttonSwitchRoleOff () public 
+        {
+           require(users[msg.sender].statusBuyer == true,"func Off - you dont buyer");
+            users[msg.sender].statusBuyer = false;
+        }
+    //--------------------------------SELLERS-----------------------------------
+    //Хранилище логинов продавцов для запроса на понижение
+    string[] public RequestSellersdown;
+    //Запрос на понижение продавца до роли покупателя
+    function RequestMeDown () public
+    {
+        RequestSellersdown.push(users[msg.sender].login);
+    }
+
+    //--------------------------------------------------------------------------
+
+    //----------------------------BUYER-----------------------------------------
+    //хранилище логинов покупателей для запроса на повышение
+    string[] public RequestBuyerUp;
+        //Запрос на повышение покупателя до роли продавца
+    function RequestMeUp () public
+    {
+        RequestBuyerUp.push(users[msg.sender].login);
+    }
+
+}
